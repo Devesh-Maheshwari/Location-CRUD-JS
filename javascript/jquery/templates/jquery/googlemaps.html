@@ -1,3 +1,207 @@
+ <html>
+<head>
+<meta name="viewport" content="initial-scale=1.0, user-scalable=no" />
+<script type="text/javascript" src="http://maps.google.com/maps/api/js?sensor=false"></script>
+<script type="text/javascript">
+var geocoder = new google.maps.Geocoder();
+
+function geocodePosition(pos) {
+  geocoder.geocode({
+    latLng: pos
+  }, function(responses) {
+<!--console.log(responses[0].address_components[responses[0].address_components.length-1])-->
+    var components=responses[0].address_components;
+    console.log(components);
+    if (responses && responses.length > 0) {
+    for (var component=0;component<(components.length);component++){
+
+            if(components[component].types[0]=="country"){
+                var country=components[component].long_name;
+                $('#3').val(country);
+            }
+
+            if(components[component].types[0]=="postal_code" ){
+                var postal_code=components[component].long_name;
+                $('#4').val(postal_code);
+            }
+    }
+
+      updateMarkerAddress(responses[0].formatted_address);
+    } else {
+      updateMarkerAddress('Cannot determine address at this location.');
+    }
+  });
+}
+
+function updateMarkerStatus(str) {
+  document.getElementById('markerStatus').innerHTML = str;
+}
+function myfunction(){
+    <!--var r =6371e3;-->
+    <!--var @1=latLng.lat().toRad();-->
+    <!--alert(@1);-->
+
+$('#submitmaps1').submit(function(e){
+    e.preventDefault();
+    $.ajax({
+    type:'POST',
+    data:$(this).serialize(),
+    url:'/submit/',
+    success:function(data){
+    },
+    });
+
+});
+}
+
+function distance(lat1,lon1,lat2,lon2){
+     var R = 6371; // Radius of the earth in km
+  var dLat = (lat2 - lat1) * (Math.PI) / 180;  // deg2rad below
+  var dLon = (lon2 - lon1) * (Math.PI)/ 180;
+  var a =
+     0.5 - Math.cos(dLat)/2 +
+     Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+     (1 - Math.cos(dLon))/2;
+     <!--console.log($('#markerStatus').html());-->
+    if($('#markerStatus').html()!='Dragging...'){
+
+  console.log('distance between Noida and marked distance is '+parseInt(R * 2 * Math.asin(Math.sqrt(a))));
+}
+}
+
+
+
+function updateMarkerPosition(latLng) {
+  document.getElementById('info').innerHTML = [
+    latLng.lat(),
+    latLng.lng()
+  ].join(', ');
+  var str=[latLng.lat(),latLng.lng()].join(',');
+  $('#hidden1').val(latLng.lat());
+  $('#hidden2').val(latLng.lng());
+  distance(latLng.lat(),latLng.lng(),28.5355,77.3910);
+  $('#2').val(str);
+
+}
+
+function updateMarkerAddress(str) {
+  document.getElementById('address').innerHTML = str;
+  $('#1').val(str);
+}
+
+function initialize() {
+  var latLng = new google.maps.LatLng(28.5355, 77.3910);
+  var map = new google.maps.Map(document.getElementById('mapCanvas'), {
+    zoom: 8,
+    center: latLng,
+    mapTypeId: google.maps.MapTypeId.ROADMAP
+  });
+
+  var marker = new google.maps.Marker({
+    position: latLng,
+    title: 'Point A',
+    map: map,
+    draggable:true,
+  });
+
+  // Update current position info.
+  updateMarkerPosition(latLng);
+  geocodePosition(latLng);
+
+  // Add dragging event listeners.
+  google.maps.event.addListener(marker, 'dragstart', function() {
+    updateMarkerAddress('Dragging...');
+  });
+
+  google.maps.event.addListener(marker, 'drag', function() {
+    updateMarkerStatus('Dragging...');
+
+    updateMarkerPosition(marker.getPosition());
+
+  });
+
+  google.maps.event.addListener(marker, 'dragend', function() {
+    updateMarkerStatus('Drag ended');
+    updateMarkerPosition(marker.getPosition());
+    geocodePosition(marker.getPosition());
+  });
+}
+
+// Onload handler to fire off the app.
+google.maps.event.addDomListener(window, 'load', initialize);
+
+
+
+</script>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.1.0/css/bootstrap.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js">
+    </script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.1.0/js/bootstrap.min.js"></script>
+
+</head>
+<body>
+  <style>
+  #mapCanvas {
+    width: 700px;
+    height: 600px;
+    float: left;
+    clear:left;
+  }
+  #infoPanel {
+    <!--float: left;-->
+    margin-left: 10px;
+  }
+  #infoPanel div {
+    margin-bottom: 5px;
+  }
+  <!--table{-->
+  <!--border:3px solid black;-->
+  <!--}-->
+  </style>
+
+  <div id="mapCanvas"></div>
+  <div id="infoPanel">
+    <b>Marker status:</b>
+    <div id="markerStatus">Click and drag the marker.</div>
+    <b>Current position:</b>
+    <div id="info"></div>
+    <b>Closest matching address:</b>
+    <div id="address"></div>
+      <p id="hidden1"></p>
+      <p id="hidden2"></p>
+      <form method="post" id="submitmaps1">
+          {% csrf_token %}
+          <input type="text" id="1" value="" name="address">
+          <input type="text" id="2">
+          <input type="text" id="3" name="country">
+          <input type="text" id="4" name="postal_code">
+          <input type="submit" value="submit" onclick="myfunction()">
+
+
+      </form>
+  </div>
+
+  <table border="2px">
+      <thead>
+          <th>Address</th>
+          <th>Country</th>
+          <th>Postal Code</th>
+        <th>Action</th>
+
+      </thead>
+      {% for map in maps %}
+      <tbody>
+      <td>{{map.address}}</td>
+      <td>{{map.country}}</td>
+      <td>{{map.postal_code}}</td>
+      <td><button class="btn btn-info">Edit</button></td>
+      <td><button class="btn btn-danger">Delete</button></td>
+      </tbody>
+      {% endfor %}
+  </table>
+
+</body>
+</html>
 <!--<!DOCTYPE html>-->
 <!--<html>-->
   <!--<head>-->
@@ -56,116 +260,116 @@
   <!--</body>-->
 <!--</html>-->
 
-   <html>
-<head>
-<meta name="viewport" content="initial-scale=1.0, user-scalable=no" />
-<script type="text/javascript" src="http://maps.google.com/maps/api/js?sensor=false"></script>
-<script type="text/javascript">
-var geocoder = new google.maps.Geocoder();
+   <!--<html>-->
+<!--<head>-->
+<!--<meta name="viewport" content="initial-scale=1.0, user-scalable=no" />-->
+<!--<script type="text/javascript" src="http://maps.google.com/maps/api/js?sensor=false"></script>-->
+<!--<script type="text/javascript">-->
+<!--var geocoder = new google.maps.Geocoder();-->
 
-function geocodePosition(pos) {
-  geocoder.geocode({
-    latLng: pos
-  }, function(responses) {
+<!--function geocodePosition(pos) {-->
+  <!--geocoder.geocode({-->
+    <!--latLng: pos-->
+  <!--}, function(responses) {-->
 
-    if (responses && responses.length > 0) {
-      updateMarkerAddress(responses[0].formatted_address);
-    } else {
-      updateMarkerAddress('Cannot determine address at this location.');
-    }
-  });
-}
+    <!--if (responses && responses.length > 0) {-->
+      <!--updateMarkerAddress(responses[0].formatted_address);-->
+    <!--} else {-->
+      <!--updateMarkerAddress('Cannot determine address at this location.');-->
+    <!--}-->
+  <!--});-->
+<!--}-->
 
-function updateMarkerStatus(str) {
-  document.getElementById('markerStatus').innerHTML = str;
-}
+<!--function updateMarkerStatus(str) {-->
+  <!--document.getElementById('markerStatus').innerHTML = str;-->
+<!--}-->
 
-function updateMarkerPosition(latLng) {
-  document.getElementById('info').innerHTML = [
-    latLng.lat(),
-    latLng.lng()
-  ].join(', ');
-}
+<!--function updateMarkerPosition(latLng) {-->
+  <!--document.getElementById('info').innerHTML = [-->
+    <!--latLng.lat(),-->
+    <!--latLng.lng()-->
+  <!--].join(', ');-->
+<!--}-->
 
-function updateMarkerAddress(str) {
-  document.getElementById('address').innerHTML = str;
-}
+<!--function updateMarkerAddress(str) {-->
+  <!--document.getElementById('address').innerHTML = str;-->
+<!--}-->
 
-function initialize() {
-  var latLng = new google.maps.LatLng(28.5355, 77.3910);
-  var map = new google.maps.Map(document.getElementById('mapCanvas'), {
-    zoom: 8,
-    center: latLng,
-    mapTypeId: google.maps.MapTypeId.ROADMAP
-  });
+<!--function initialize() {-->
+  <!--var latLng = new google.maps.LatLng(28.5355, 77.3910);-->
+  <!--var map = new google.maps.Map(document.getElementById('mapCanvas'), {-->
+    <!--zoom: 8,-->
+    <!--center: latLng,-->
+    <!--mapTypeId: google.maps.MapTypeId.ROADMAP-->
+  <!--});-->
 
-  var marker = new google.maps.Marker({
-    position: latLng,
-    title: 'Point A',
-    map: map,
-    draggable:true,
-
-
-  });
+  <!--var marker = new google.maps.Marker({-->
+    <!--position: latLng,-->
+    <!--title: 'Point A',-->
+    <!--map: map,-->
+    <!--draggable:true,-->
 
 
-  // Update current position info.
-  updateMarkerPosition(latLng);
-  geocodePosition(latLng);
+  <!--});-->
 
-  // Add dragging event listeners.
-  google.maps.event.addListener(marker, 'dragstart', function() {
-    updateMarkerAddress('Dragging...');
-  });
 
-  google.maps.event.addListener(marker, 'drag', function() {
-    updateMarkerStatus('Dragging...');
-    updateMarkerPosition(marker.getPosition());
+  <!--// Update current position info.-->
+  <!--updateMarkerPosition(latLng);-->
+  <!--geocodePosition(latLng);-->
 
-  });
+  <!--// Add dragging event listeners.-->
+  <!--google.maps.event.addListener(marker, 'dragstart', function() {-->
+    <!--updateMarkerAddress('Dragging...');-->
+  <!--});-->
 
-  google.maps.event.addListener(marker, 'dragend', function() {
-    updateMarkerStatus('Drag ended');
-    geocodePosition(marker.getPosition());
-  });
-}
+  <!--google.maps.event.addListener(marker, 'drag', function() {-->
+    <!--updateMarkerStatus('Dragging...');-->
+    <!--updateMarkerPosition(marker.getPosition());-->
 
-// Onload handler to fire off the app.
-google.maps.event.addDomListener(window, 'load', initialize);
-</script>
-</head>
-<body>
-  <style>
-  #mapCanvas {
-    width: 500px;
-    height: 400px;
-    float: left;
-  }
-  #infoPanel {
-    float: left;
-    margin-left: 10px;
-  }
-  #infoPanel div {
-    margin-bottom: 5px;
-  }
-  </style>
+  <!--});-->
 
-  <div id="mapCanvas"></div>
-  <div id="infoPanel">
-    <b>Marker status:</b>
-    <div id="markerStatus"><i>Click and drag the marker.</i></div>
-    <b>Current position:</b>
-    <div id="info"></div>
-    <b>Closest matching address:</b>
-    <div id="address"></div>
-      <form method="post">
-          <input type="text">
-          <input type="text">
-          <input type="text">
-          <input type="text">
-          <input type="submit" value="submit">
-      </form>
-  </div>
-</body>
-</html>
+  <!--google.maps.event.addListener(marker, 'dragend', function() {-->
+    <!--updateMarkerStatus('Drag ended');-->
+    <!--geocodePosition(marker.getPosition());-->
+  <!--});-->
+<!--}-->
+
+<!--// Onload handler to fire off the app.-->
+<!--google.maps.event.addDomListener(window, 'load', initialize);-->
+<!--</script>-->
+<!--</head>-->
+<!--<body>-->
+  <!--<style>-->
+  <!--#mapCanvas {-->
+    <!--width: 500px;-->
+    <!--height: 400px;-->
+    <!--float: left;-->
+  <!--}-->
+  <!--#infoPanel {-->
+    <!--float: left;-->
+    <!--margin-left: 10px;-->
+  <!--}-->
+  <!--#infoPanel div {-->
+    <!--margin-bottom: 5px;-->
+  <!--}-->
+  <!--</style>-->
+
+  <!--<div id="mapCanvas"></div>-->
+  <!--<div id="infoPanel">-->
+    <!--<b>Marker status:</b>-->
+    <!--<div id="markerStatus"><i>Click and drag the marker.</i></div>-->
+    <!--<b>Current position:</b>-->
+    <!--<div id="info"></div>-->
+    <!--<b>Closest matching address:</b>-->
+    <!--<div id="address"></div>-->
+      <!--<form method="post">-->
+          <!--<input type="text">-->
+          <!--<input type="text">-->
+          <!--<input type="text">-->
+          <!--<input type="text">-->
+          <!--<input type="submit" value="submit">-->
+      <!--</form>-->
+  <!--</div>-->
+<!--</body>-->
+<!--</html>-->
 <!--{lat: 30.5355, lng: 90.3910},-->
